@@ -56,6 +56,37 @@ pub async fn handle_command(
                 .unwrap_or(0.0);
             Ok(format!("Balance: {}", balance))
         }
+        "add" => {
+            if args.len() < 2 {
+                return Err(AppError::InvalidCommand);
+            }
+            let amount: f64 = args[0]
+                .parse()
+                .map_err(|_| AppError::InvalidAmount)?;
+            let description = args[1..].join(" ");
+
+            let username = {
+                let db = database.lock().unwrap();
+                db.get_username(address)
+                    .ok_or(AppError::NotLoggedIn)?
+            };
+
+            let category = crate::ai::categorize(&description).await?;
+
+            let transaction = crate::models::Transaction {
+                amount,
+                description: description.clone(),
+                category: category.clone(),
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            };
+
+            let mut db = database.lock().unwrap();
+            db.add_transaction(&username, transaction);
+            Ok(format!("Added: {} ({})", amount, category))
+        }
         _ => Err(AppError::InvalidCommand),
     }
 }
