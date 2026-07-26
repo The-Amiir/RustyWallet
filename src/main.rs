@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() {
-
+    dotenvy::dotenv().ok();
     println!("========================");
     println!(" Rusty Wallet Server");
     println!("========================");
