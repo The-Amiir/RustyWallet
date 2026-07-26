@@ -1,85 +1,38 @@
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpStream,
-};
-
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpStream;
 use crate::database::Database;
+use crate::commands::handle_command;
 
 pub async fn handle_client(
-    stream: TcpStream,
-    _database: Arc<Mutex<Database>>,
+    mut socket: TcpStream,
+    database: Arc<Mutex<Database>>,
 ) {
-
-    let address = match stream.peer_addr() {
-        Ok(addr) => addr,
-        Err(_) => return,
-    };
-
-    println!("Handling client: {}", address);
-
-    let (reader, mut writer) = stream.into_split();
-
+    let address = socket.peer_addr().unwrap();
+    let (reader, mut writer) = socket.split();
     let mut reader = BufReader::new(reader);
-
-    if writer
-        .write_all(b"Welcome to Rusty Wallet Server\n")
-        .await
-        .is_err()
-    {
-        return;
-    }
-
-    if writer
-        .write_all(b"Type 'exit' to disconnect.\n")
-        .await
-        .is_err()
-    {
-        return;
-    }
-
     let mut line = String::new();
 
     loop {
-
         line.clear();
-
-        let bytes = match reader.read_line(&mut line).await {
-            Ok(size) => size,
-            Err(_) => break,
-        };
-
-        if bytes == 0 {
-            break;
-        }
-
-        let command = line.trim();
-        if command.eq_ignore_ascii_case("exit") {
-
-            if writer
-                .write_all(b"Goodbye!\n")
-                .await
-                .is_err()
-            {
+        match reader.read_line(&mut line).await {
+            Ok(0) => break,
+            Ok(_) => {
+                let response = match handle_command(database.clone(), address, &line).await {
+                    Ok(msg) => msg,
+                    Err(e) => format!("Error: {}", e),
+                };
+                let output = format!("{}\n", response);
+                if let Err(e) = writer.write_all(output.as_bytes()).await {
+                    eprintln!("write error: {}", e);
+                    break;
+                }
+            }
+            Err(e) => {
+                eprintln!("read error: {}", e);
                 break;
             }
-
-            break;
-        }
-
-        let response = format!(
-            "Server received: {}\n",
-            command
-        );
-
-        if writer
-            .write_all(response.as_bytes())
-            .await
-            .is_err()
-        {
-            break;
         }
     }
-
 }
