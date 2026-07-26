@@ -1,13 +1,46 @@
-# Rusty Wallet
+# ===========================
+# RUSTYWALLET - ALL COMMANDS 
+# ===========================
 
-Financial Management Server
+# ---------- PROJECT SETUP ----------
+cargo new rustywallet
+cd rustywallet
+echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
 
-University Project
+# ---------- BUILD ----------
+cargo build
+cargo build --release
 
-## Features
+# ---------- RUN SERVER ----------
+cargo run
 
-- TCP Server
-- UDP Heartbeat
-- User Authentication
-- Transaction Management
-- AI Transaction Categorization
+# ---------- CONNECT WITH TELNET ----------
+telnet 127.0.0.1 8080
+
+# ---------- SEND HEARTBEAT (UDP) ----------
+echo "ping" | nc -u 127.0.0.1 8081
+
+# ---------- TELNET COMMANDS ----------
+register <username> <password>
+login <username> <password>
+logout
+add <amount> <description>
+balance
+history
+
+# ---------- TELNET COMMANDS (EXAMPLE) ----------
+register ali 123
+login ali 123
+add 25000 lunch
+add 12000 taxi
+add 5000 book
+balance
+history
+logout
+
+# ---------- EXIT TELNET ----------
+Ctrl + ]
+quit
+
+# ---------- STOP SERVER ----------
+Ctrl + C
