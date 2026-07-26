@@ -1,29 +1,80 @@
 use serde::{Deserialize, Serialize};
+use crate::errors::AppResult;
 
 #[derive(Serialize)]
-pub struct OpenAiRequest {
-    pub model: String,
-    pub messages: Vec<Message>,
-    pub temperature: f32,
+struct OpenAiRequest {
+    model: String,
+    messages: Vec<Message>,
+    temperature: f32,
 }
 
 #[derive(Serialize)]
-pub struct Message {
-    pub role: String,
-    pub content: String,
+struct Message {
+    role: String,
+    content: String,
 }
 
 #[derive(Deserialize)]
-pub struct OpenAiResponse {
-    pub choices: Vec<Choice>,
+struct OpenAiResponse {
+    choices: Vec<Choice>,
 }
 
 #[derive(Deserialize)]
-pub struct Choice {
-    pub message: ResponseMessage,
+struct Choice {
+    message: ResponseMessage,
 }
 
 #[derive(Deserialize)]
-pub struct ResponseMessage {
-    pub content: String,
+struct ResponseMessage {
+    content: String,
+}
+
+pub async fn categorize(description: &str) -> AppResult<String> {
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| crate::errors::AppError::Internal("Missing OPENAI_API_KEY".to_string()))?;
+
+    let prompt = format!(
+        "Categorize the transaction '{}' into one of these labels: Food, Transport, Education, Income, Other. Return only the label name.",
+        description
+    );
+
+    let client = reqwest::Client::new();
+    let request = OpenAiRequest {
+        model: "gpt-3.5-turbo".to_string(),
+        messages: vec![Message {
+            role: "user".to_string(),
+            content: prompt,
+        }],
+        temperature: 0.0,
+    };
+
+    let response = client
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&request)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| crate::errors::AppError::Internal(format!("Request failed: {}", e)))?;
+
+    let body: OpenAiResponse = response
+        .json()
+        .await
+        .map_err(|e| crate::errors::AppError::Internal(format!("Parse failed: {}", e)))?;
+
+    let category = body
+        .choices
+        .first()
+        .ok_or_else(|| crate::errors::AppError::Internal("No response".to_string()))?
+        .message
+        .content
+        .trim()
+        .to_string();
+
+    let valid = ["Food", "Transport", "Education", "Income", "Other"];
+    if valid.contains(&category.as_str()) {
+        Ok(category)
+    } else {
+        Ok("Other".to_string())
+    }
 }
