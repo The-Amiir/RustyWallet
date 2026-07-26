@@ -87,6 +87,37 @@ pub async fn handle_command(
             db.add_transaction(&username, transaction);
             Ok(format!("Added: {} ({})", amount, category))
         }
+        "history" => {
+            let username = {
+                let db = database.lock().unwrap();
+                db.get_username(address)
+                    .ok_or(AppError::NotLoggedIn)?
+            };
+
+            let transactions = {
+                let db = database.lock().unwrap();
+                db.get_transactions(&username)
+                    .unwrap_or_else(Vec::new)
+            };
+
+            let result = tokio::task::spawn_blocking(move || {
+                if transactions.is_empty() {
+                    return "No transactions".to_string();
+                }
+                let mut output = String::from("History:\n");
+                for tx in transactions {
+                    output.push_str(&format!(
+                        "{} - {}: {} ({})\n",
+                        tx.timestamp, tx.category, tx.amount, tx.description
+                    ));
+                }
+                output
+            })
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking: {}", e)))?;
+
+            Ok(result)
+        }
         _ => Err(AppError::InvalidCommand),
     }
 }
