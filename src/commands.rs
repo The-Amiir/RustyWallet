@@ -1,7 +1,10 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use tokio::task::spawn_blocking;
 use crate::database::Database;
 use crate::errors::{AppError, AppResult};
+use crate::models::Transaction;
+use crate::ai::categorize;
 
 pub async fn handle_command(
     database: Arc<Mutex<Database>>,
@@ -48,13 +51,26 @@ pub async fn handle_command(
             db.logout(address);
             Ok("Logged out".to_string())
         }
-        "balance" => {
-            let db = database.lock().unwrap();
-            let username = db.get_username(address)
-                .ok_or(AppError::NotLoggedIn)?;
-            let balance = db.get_balance(&username)
-                .unwrap_or(0.0);
-            Ok(format!("Balance: {}", balance))
+        "budget" => {
+            if args.len() != 1 {
+                return Err(AppError::InvalidCommand);
+            }
+            let amount: f64 = args[0]
+                .parse()
+                .map_err(|_| AppError::InvalidAmount)?;
+            
+            let username = {
+                let db = database.lock().unwrap();
+                db.get_username(address)
+                    .ok_or(AppError::NotLoggedIn)?
+            };
+
+            let mut db = database.lock().unwrap();
+            if db.set_budget(&username, amount) {
+                Ok(format!("Budget set to: {}", amount))
+            } else {
+                Err(AppError::Internal("Failed to set budget".to_string()))
+            }
         }
         "add" => {
             if args.len() < 2 {
@@ -71,9 +87,22 @@ pub async fn handle_command(
                     .ok_or(AppError::NotLoggedIn)?
             };
 
-            let category = crate::ai::categorize(&description).await?;
+            
+            {
+                let db = database.lock().unwrap();
+                if let Some(budget) = db.get_budget(&username) {
+                    if budget < amount {
+                        return Err(AppError::Internal(format!(
+                            "Insufficient budget. Remaining: {}", 
+                            budget
+                        )));
+                    }
+                }
+            }
 
-            let transaction = crate::models::Transaction {
+            let category = categorize(&description).await?;
+
+            let transaction = Transaction {
                 amount,
                 description: description.clone(),
                 category: category.clone(),
@@ -85,7 +114,19 @@ pub async fn handle_command(
 
             let mut db = database.lock().unwrap();
             db.add_transaction(&username, transaction);
-            Ok(format!("Added: {} ({})", amount, category))
+            
+            // Get remaining budget
+            let remaining = db.get_budget(&username).unwrap_or(0.0);
+            
+            Ok(format!("Added: {} ({}) - Remaining budget: {}", amount, category, remaining))
+        }
+        "balance" => {
+            let db = database.lock().unwrap();
+            let username = db.get_username(address)
+                .ok_or(AppError::NotLoggedIn)?;
+            let budget = db.get_budget(&username)
+                .unwrap_or(0.0);
+            Ok(format!("Remaining budget: {}", budget))
         }
         "history" => {
             let username = {
@@ -100,7 +141,7 @@ pub async fn handle_command(
                     .unwrap_or_else(Vec::new)
             };
 
-            let result = tokio::task::spawn_blocking(move || {
+            let result = spawn_blocking(move || {
                 if transactions.is_empty() {
                     return "No transactions".to_string();
                 }

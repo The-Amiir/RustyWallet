@@ -13,6 +13,7 @@ pub struct User {
     pub username: String,
     pub password: String,
     pub balance: f64,
+    pub budget: f64,
     pub transactions: Vec<Transaction>,
 }
 
@@ -22,6 +23,7 @@ impl User {
             username,
             password,
             balance: 0.0,
+            budget: 0.0,
             transactions: Vec::new(),
         }
     }
