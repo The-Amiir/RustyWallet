@@ -43,6 +43,19 @@ pub async fn handle_command(
                 Err(AppError::InvalidCredentials)
             }
         }
+        "logout" => {
+            let mut db = database.lock().unwrap();
+            db.logout(address);
+            Ok("Logged out".to_string())
+        }
+        "balance" => {
+            let db = database.lock().unwrap();
+            let username = db.get_username(address)
+                .ok_or(AppError::NotLoggedIn)?;
+            let balance = db.get_balance(&username)
+                .unwrap_or(0.0);
+            Ok(format!("Balance: {}", balance))
+        }
         _ => Err(AppError::InvalidCommand),
     }
 }
