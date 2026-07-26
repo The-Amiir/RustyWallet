@@ -6,6 +6,7 @@ use crate::models::{Session, Transaction, User};
 pub struct Database {
     pub users: HashMap<String, User>,
     pub sessions: HashMap<SocketAddr, Session>,
+     pub last_heartbeat: HashMap<SocketAddr, u64>,
 }
 
 impl Database {
@@ -13,6 +14,7 @@ impl Database {
         Self {
             users: HashMap::new(),
             sessions: HashMap::new(),
+            last_heartbeat: HashMap::new(),
         }
     }
 
@@ -48,6 +50,7 @@ impl Database {
 
         let session = Session::new(username, address);
         self.sessions.insert(address, session);
+        self.update_heartbeat(address);
         true
     }
 
@@ -96,4 +99,34 @@ impl Database {
             .map(|u| u.transactions.clone())
 
     }
+    pub fn update_heartbeat(&mut self, address: SocketAddr) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    self.last_heartbeat.insert(address, now);
+}
+
+pub fn cleanup_sessions(&mut self, timeout_secs: u64) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let expired: Vec<SocketAddr> = self
+        .sessions
+        .keys()
+        .filter(|addr| {
+            if let Some(&last) = self.last_heartbeat.get(addr) {
+                now - last > timeout_secs
+            } else {
+                true
+            }
+        })
+        .cloned()
+        .collect();
+    for addr in expired {
+        self.sessions.remove(&addr);
+        self.last_heartbeat.remove(&addr);
+    }
+}
 }
