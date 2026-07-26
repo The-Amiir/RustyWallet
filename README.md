@@ -24,6 +24,7 @@ echo "ping" | nc -u 127.0.0.1 8081
 register <username> <password>
 login <username> <password>
 logout
+budget <amount>
 add <amount> <description>
 balance
 history
@@ -31,6 +32,7 @@ history
 # ---------- TELNET COMMANDS (EXAMPLE) ----------
 register ali 123
 login ali 123
+budget 10000
 add 25000 lunch
 add 12000 taxi
 add 5000 book
