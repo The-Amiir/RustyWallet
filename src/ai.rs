@@ -30,8 +30,8 @@ struct ResponseMessage {
 }
 
 pub async fn categorize(description: &str) -> AppResult<String> {
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .map_err(|_| crate::errors::AppError::Internal("Missing OPENAI_API_KEY".to_string()))?;
+    let api_key = std::env::var("OPENROUTER_API_KEY")
+        .map_err(|_| crate::errors::AppError::Internal("Missing OPENROUTER_API_KEY".to_string()))?;
 
     let prompt = format!(
         "Categorize the transaction '{}' into one of these labels: Food, Transport, Education, Income, Other. Return only the label name.",
@@ -40,7 +40,7 @@ pub async fn categorize(description: &str) -> AppResult<String> {
 
     let client = reqwest::Client::new();
     let request = OpenAiRequest {
-        model: "gpt-3.5-turbo".to_string(),
+        model: "openrouter/free".to_string(),
         messages: vec![Message {
             role: "user".to_string(),
             content: prompt,
@@ -49,10 +49,10 @@ pub async fn categorize(description: &str) -> AppResult<String> {
     };
 
     let response = client
-        .post("https://api.openai.com/v1/chat/completions")
+        .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&request)
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
         .map_err(|e| crate::errors::AppError::Internal(format!("Request failed: {}", e)))?;
