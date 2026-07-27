@@ -20,7 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let udp_socket = Arc::new(UdpSocket::bind("0.0.0.0:0")?);
     let udp_socket_clone = udp_socket.clone();
 
-
     let current_user = Arc::new(Mutex::new(None::<String>));
     let current_user_clone = current_user.clone();
 
@@ -46,9 +45,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = BufReader::new(reader);
     let stdin = io::stdin();
 
+
     let mut pending_login: Option<String> = None;
 
-    loop {
+
+    'outer: loop {
         print!("> ");
         io::stdout().flush()?;
 
@@ -66,12 +67,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
+
         if input.starts_with("login ") {
             let parts: Vec<&str> = input.split_whitespace().collect();
             if parts.len() == 3 {
                 pending_login = Some(parts[1].to_string());
             }
         }
+
 
         if input == "logout" {
             *current_user.lock().unwrap() = None;
@@ -83,29 +86,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
 
-        let mut response = String::new();
-        match reader.read_line(&mut response).await {
-            Ok(0) => {
-                println!("Server disconnected");
-                break;
-            }
-            Ok(_) => {
-                let resp = response.trim_end().to_string();
-                print!("{}", response); 
+        let is_history = input.starts_with("history");
 
-                if resp == "Logged in" {
-                    if let Some(user) = pending_login.take() {
-                        let mut lock = current_user.lock().unwrap();
-                        *lock = Some(user);
+        let mut full_response = String::new();
+
+        if is_history {
+            loop {
+                let mut line = String::new();
+                match reader.read_line(&mut line).await {
+                    Ok(0) => {
+                        println!("Server disconnected");
+                        break 'outer;
                     }
-                } else {
-                    pending_login = None;
+                    Ok(_) => {
+                        let trimmed = line.trim_end();
+                        if trimmed == "__END__" {
+                            break; 
+                        }
+                        full_response.push_str(&line);
+                    }
+                    Err(e) => {
+                        println!("Error reading response: {}", e);
+                        break 'outer;
+                    }
                 }
             }
-            Err(e) => {
-                println!("Error reading response: {}", e);
-                break;
+        } else {
+            let mut line = String::new();
+            match reader.read_line(&mut line).await {
+                Ok(0) => {
+                    println!("Server disconnected");
+                    break;
+                }
+                Ok(_) => {
+                    full_response = line;
+                }
+                Err(e) => {
+                    println!("Error reading response: {}", e);
+                    break;
+                }
             }
+        }
+
+        print!("{}", full_response);
+
+        if full_response.trim() == "Logged in" {
+            if let Some(user) = pending_login.take() {
+                let mut lock = current_user.lock().unwrap();
+                *lock = Some(user);
+            }
+        } else {
+            pending_login = None;
         }
     }
 

@@ -130,28 +130,24 @@ pub async fn handle_command(
         "history" => {
             let username = {
                 let db = database.lock().unwrap();
-                db.get_username(address)
-                    .ok_or(AppError::NotLoggedIn)?
+                db.get_username(address).ok_or(AppError::NotLoggedIn)?
             };
             let transactions = {
                 let db = database.lock().unwrap();
-                db.get_transactions(&username)
-                    .unwrap_or_else(Vec::new)
+                db.get_transactions(&username).unwrap_or_else(Vec::new)
             };
             if transactions.is_empty() {
-                return Ok("No transactions".to_string());
+                return Ok("No transactions\n__END__".to_string());   
             }
-
             let mut output = String::from("History:\n");
             for tx in &transactions {
-                let readable_time = chrono::DateTime::from_timestamp(tx.timestamp as i64, 0)
-                    .map(|dt| dt.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_else(|| tx.timestamp.to_string());
+                let time_str = tx.timestamp.to_string();  
                 output.push_str(&format!(
                     "{} - {}: {} ({})\n",
-                    readable_time, tx.category, tx.amount, tx.description
+                    time_str, tx.category, tx.amount, tx.description
                 ));
             }
+            output.push_str("__END__");  
             Ok(output)
         }
         _ => Err(AppError::InvalidCommand),
