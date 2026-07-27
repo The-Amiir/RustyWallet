@@ -73,4 +73,3 @@ Press `Ctrl+C` in the server terminal, or `Ctrl+]` followed by quit in telnet.
 - View all transactions (with timestamps): `history`
 - Exit: `exit` or `quit`
 
-## License
