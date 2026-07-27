@@ -37,7 +37,7 @@ async fn main() {
     });
 
     let cleanup_handle = tokio::spawn(async move {
-        udp::cleanup_sessions(db_cleanup, 10).await;
+        udp::cleanup_sessions(db_cleanup, 30).await;
     });
 
     tokio::select! {

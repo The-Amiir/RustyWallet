@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         let heartbeat_msg = b"ping";
         loop {
-            if let Err(e) = udp_socket_clone.send_to(heartbeat_msg, "127.0.0.1:8081") {
+            if let Err(e) = udp_socket_clone.send_to(heartbeat_msg, "127.0.0.1:8082") {
                 eprintln!("Heartbeat error: {}", e);
             }
             sleep(Duration::from_secs(5)).await;
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (reader, mut writer) = stream.split();
     let mut reader = BufReader::new(reader);
-    let stdin = io::stdin();
+    let mut stdin = io::stdin();
 
     loop {
         print!("> ");

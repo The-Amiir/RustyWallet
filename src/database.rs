@@ -93,6 +93,7 @@ impl Database {
             .unwrap()
             .as_secs();
         self.last_heartbeat.insert(address, now);
+        println!("Heartbeat received from: {}", address);
     }
 
     pub fn cleanup_sessions(&mut self, timeout_secs: u64) {
