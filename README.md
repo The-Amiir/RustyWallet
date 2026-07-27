@@ -1,48 +1,76 @@
-# ===========================
-# RUSTYWALLET - ALL COMMANDS 
-# ===========================
+# 🪙 RustyWallet
 
-# ---------- PROJECT SETUP ----------
-cargo new rustywallet
-cd rustywallet
-echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+A simple personal finance manager built in Rust, with a TCP client-server architecture, UDP heartbeat for session management, and optional AI-powered transaction categorization via OpenRouter.
 
-# ---------- BUILD ----------
+## Features
+
+- User registration & login (in-memory)
+- Set monthly budget
+- Add transactions with automatic category suggestion (AI)
+- View current balance (remaining budget)
+- Transaction history with timestamps
+- Session management with UDP heartbeat to prevent timeouts
+- Custom command-line client (alternative to telnet)
+
+## Prerequisites
+
+- Rust (edition 2024)
+- An [OpenRouter](https://openrouter.ai/) API key (for AI categorization)
+
+## Setup
+
+1. Clone the repository or create the project.
+2. Create a `.env` file in the project root: OPENROUTER_API_KEY=your_api_key_here
+3. Build the project:
+```bash
 cargo build
-cargo build --release
+```
 
-# ---------- RUN SERVER ----------
-cargo run
+## Running the server
 
-# ---------- CONNECT WITH TELNET ----------
-telnet 127.0.0.1 8080
+1. Start the server:
+```bash
+cargo run --bin server
+```
+The server starts on 127.0.0.1:8080 (TCP) and listens for UDP heartbeats on 127.0.0.1:8082.
 
-# ---------- SEND HEARTBEAT (UDP) ----------
-echo "ping" | nc -u 127.0.0.1 8081
+## Connecting a Client
+1. Custom CLI Client (recommended)
+```bash
+cargo run --bin wallet_client
+```
+This client automatically sends UDP heartbeats (with your username after login) and properly handles multi-line history output.
 
-# ---------- TELNET COMMANDS ----------
-register <username> <password>
-login <username> <password>
-logout
-budget <amount>
-add <amount> <description>
-balance
-history
+2. Telnet / Netcat
+```bash
+telnet localhost 8080
+```
+Note: When using telnet, the session will expire after 30 seconds unless you manually send a UDP heartbeat containing the username (see below). History output will also appear messy due to buffering differences.
 
-# ---------- TELNET COMMANDS (EXAMPLE) ----------
-register ali 123
-login ali 123
-budget 10000
-add 25000 lunch
-add 12000 taxi
-add 5000 book
-balance
-history
-logout
+# Sending a Manual Heartbeat (for telnet users)
+After logging in, you need to send a UDP packet to keep the session alive:
+```bash
+echo -n "ping:your_username" | nc -u 127.0.0.1 8082
+```
+Replace your_username with the name you used to log in.
 
-# ---------- EXIT TELNET ----------
-Ctrl + ]
-quit
+# Stopping the Server (for telnet users)
+Press `Ctrl+C` in the server terminal, or `Ctrl+]` followed by quit in telnet.
 
-# ---------- STOP SERVER ----------
-Ctrl + C
+## How the Heartbeat Works
+- The client (or a manual UDP packet) sends a `ping:username` message every 5 seconds to `127.0.0.1:8082`.
+- The server uses the username to find the corresponding TCP session and renews its timeout.
+- Without a heartbeat, the session expires after 30 seconds of inactivity (configurable in `main.rs`).
+
+## Available Commands
+
+- Register a new user: `register <username> <password>`
+- Login: `login <username> <password>`
+- logout: `logout`
+- Set budget: `budget <amount>`
+- Add transaction: `add <amount> <description>`
+- View remaining budget: `balance`
+- View all transactions (with timestamps): `history`
+- Exit: `exit` or `quit`
+
+## License
