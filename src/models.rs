@@ -10,7 +10,6 @@ pub struct Transaction {
 
 #[derive(Clone, Debug)]
 pub struct User {
-    pub username: String,
     pub password: String,
     pub balance: f64,
     pub budget: f64,
@@ -18,9 +17,8 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(username: String, password: String) -> Self {
+    pub fn new(password: String) -> Self {
         Self {
-            username,
             password,
             balance: 0.0,
             budget: 0.0,

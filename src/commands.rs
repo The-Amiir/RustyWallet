@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::task::spawn_blocking;
 use crate::database::Database;
 use crate::errors::{AppError, AppResult};
 use crate::models::Transaction;
@@ -115,7 +114,7 @@ pub async fn handle_command(
             let mut db = database.lock().unwrap();
             db.add_transaction(&username, transaction);
             
-            // Get remaining budget
+
             let remaining = db.get_budget(&username).unwrap_or(0.0);
             
             Ok(format!("Added: {} ({}) - Remaining budget: {}", amount, category, remaining))
@@ -134,30 +133,26 @@ pub async fn handle_command(
                 db.get_username(address)
                     .ok_or(AppError::NotLoggedIn)?
             };
-
             let transactions = {
                 let db = database.lock().unwrap();
                 db.get_transactions(&username)
                     .unwrap_or_else(Vec::new)
             };
+            if transactions.is_empty() {
+                return Ok("No transactions".to_string());
+            }
 
-            let result = spawn_blocking(move || {
-                if transactions.is_empty() {
-                    return "No transactions".to_string();
-                }
-                let mut output = String::from("History:\n");
-                for tx in transactions {
-                    output.push_str(&format!(
-                        "{} - {}: {} ({})\n",
-                        tx.timestamp, tx.category, tx.amount, tx.description
-                    ));
-                }
-                output
-            })
-            .await
-            .map_err(|e| AppError::Internal(format!("spawn_blocking: {}", e)))?;
-
-            Ok(result)
+            let mut output = String::from("History:\n");
+            for tx in &transactions {
+                let readable_time = chrono::DateTime::from_timestamp(tx.timestamp as i64, 0)
+                    .map(|dt| dt.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|| tx.timestamp.to_string());
+                output.push_str(&format!(
+                    "{} - {}: {} ({})\n",
+                    readable_time, tx.category, tx.amount, tx.description
+                ));
+            }
+            Ok(output)
         }
         _ => Err(AppError::InvalidCommand),
     }

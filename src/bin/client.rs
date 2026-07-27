@@ -46,7 +46,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = BufReader::new(reader);
     let stdin = io::stdin();
 
-
     let mut pending_login: Option<String> = None;
 
     loop {
@@ -59,7 +58,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if input == "exit" || input == "quit" {
             println!("Goodbye!");
-
             *current_user.lock().unwrap() = None;
             break;
         }
@@ -68,14 +66,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-
         if input.starts_with("login ") {
             let parts: Vec<&str> = input.split_whitespace().collect();
             if parts.len() == 3 {
                 pending_login = Some(parts[1].to_string());
             }
         }
-
 
         if input == "logout" {
             *current_user.lock().unwrap() = None;
@@ -103,7 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         *lock = Some(user);
                     }
                 } else {
-
                     pending_login = None;
                 }
             }
