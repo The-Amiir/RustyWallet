@@ -24,7 +24,7 @@ impl Database {
             return false;
         }
 
-        let user = User::new(username.clone(), password);
+        let user = User::new(password);
         self.users.insert(username, user);
         true
     }
@@ -64,10 +64,6 @@ impl Database {
         }
     }
 
-    pub fn get_balance(&self, username: &str) -> Option<f64> {
-        self.users.get(username).map(|u| u.balance)
-    }
-
     pub fn get_budget(&self, username: &str) -> Option<f64> {
         self.users.get(username).map(|u| u.budget)
     }
@@ -96,6 +92,10 @@ impl Database {
         println!("Heartbeat received from: {}", address);
     }
 
+    pub fn get_session_by_username(&self, username: &str) -> Option<&Session> {
+        self.sessions.values().find(|s| s.username == username)
+    }
+
     pub fn cleanup_sessions(&mut self, timeout_secs: u64) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -113,9 +113,13 @@ impl Database {
             })
             .cloned()
             .collect();
-        for addr in expired {
-            self.sessions.remove(&addr);
-            self.last_heartbeat.remove(&addr);
-        }
+
+            if !expired.is_empty() {
+                println!("[CLEANUP] Removing sessions: {:?}", expired);
+            }
+            for addr in expired {
+                self.sessions.remove(&addr);
+                self.last_heartbeat.remove(&addr);
+            }
     }
 }

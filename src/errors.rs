@@ -4,8 +4,6 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Not logged in")]
     NotLoggedIn,
-    #[error("Already logged in")]
-    AlreadyLoggedIn,
     #[error("User already exists")]
     UserExists,
     #[error("Invalid username or password")]
