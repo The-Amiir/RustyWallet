@@ -12,7 +12,6 @@ pub async fn start_heartbeat(database: Arc<Mutex<Database>>) -> std::io::Result<
         let msg = String::from_utf8_lossy(&buf[..len]);
         let mut db = database.lock().unwrap();
 
-        // اگر heartbeat شامل username باشد، نشست واقعی TCP را پیدا و تمدید کن
         if let Some(username) = msg.strip_prefix("ping:") {
             let address = {
                 let session = db.get_session_by_username(username);
@@ -23,8 +22,7 @@ pub async fn start_heartbeat(database: Arc<Mutex<Database>>) -> std::io::Result<
                 db.update_heartbeat(address);
             }
         }
-        // در غیر این صورت، heartbeat ساده (بدون username) را با همان آدرس UDP تمدید کن
-        // (برای حفظ سازگاری احتمالی، ولی تأثیری بر نشست TCP ندارد)
+
         else {
             db.update_heartbeat(peer);
         }
